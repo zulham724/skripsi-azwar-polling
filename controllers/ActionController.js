@@ -3,11 +3,16 @@ var gpio = require('onoff').Gpio;
 var pin2 = new gpio(2,'out');
 // ============================
 var request = require('request');
+var sizeof = require('object-sizeof');
+var os = require('os-utils');
 // ============================
 //declare global variable
 var url = "http://skripsi-azwar.ardata.co.id/";
 var token = null;
 var current_action = null;
+var bandwidth = 0;
+var cpuUsage = 0;
+var memoryUsage = 0;
 
 // setup module
 module.exports = {
@@ -36,7 +41,13 @@ module.exports = {
 				token = body.access_token;
 				
 				setInterval(()=>{
+					
+					os.cpuUsage(val=>{
+						cpuUsage = val;
+					});
+
 					// console.log('requesting data.. \n');
+
 					request.get({
 						url:url+'api/users/1',
 						json:true,
@@ -46,40 +57,49 @@ module.exports = {
 						}
 					},function(err,resp,body){
 						
-						if(current_action != (body.data != null ? body.data.name : null)){
+						if(!err && resp.statusCode == 200){
 							
-							if(body.data.name == 'forward'){
-								pin2.writeSync(1);
-							} else if(body.data.name == 'stop'){
-								pin2.writeSync(0);
-							}
+							bandwidth += sizeof(body);
+							memoryUsage = os.totalmem() - os.freemem();
 							
-							var date = new Date();
-							current_action = body.data.name;
-							console.log('New data recieved at ',date.toString(),' with : ',current_action,'\n');
-							console.log('data will sent to server again, please wait...');
+							if(current_action != (body.data != null ? body.data.name : null)){
 							
-							request.post({
-								url:url+'api/pollings',
-								json:true,
-								headers:{
-									Accept:'application/json',
-									Authorization:'Bearer '+token
-								},
-								body:{
-									user_id:1,
-									value:body.data.name,
-									date:date.toLocaleString()
+								if(body.data.name == 'forward'){
+									pin2.writeSync(1);
+								} else if(body.data.name == 'stop'){
+									pin2.writeSync(0);
 								}
-							},function(err,resp,body){
-								console.log('result :\n',body);
-							});
-							
-							
+								
+								var date = new Date();
+								
+								current_action = body.data.name;
+								
+								console.log('New data recieved at ',date.toString(),' with : ',current_action,'\n','estimate bandwidth used : ',bandwidth,' Bytes \n','estimate cpu usage : ',cpuUsage,'%\n','estimate memory used : ',memoryUsage,' Bytes\n');
+								console.log('data will sent to server again, please wait...');
+								
+								request.post({
+									url:url+'api/pollings',
+									json:true,
+									headers:{
+										Accept:'application/json',
+										Authorization:'Bearer '+token
+									},
+									body:{
+										user_id:1,
+										value:body.data.name,
+										date:date.toLocaleString()
+									}
+								},function(err,resp,body){
+									console.log('result :\n',body);
+								});
+								
+								
+							}
+						
 						}
 						
 					});
-				},1000);
+				},500);
 			});
 			
 		});
