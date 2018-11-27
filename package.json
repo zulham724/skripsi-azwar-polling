@@ -14,6 +14,8 @@
     "object-sizeof": "^1.3.0",
     "onoff": "^3.2.2",
     "os-utils": "0.0.14",
+    "pi-motor": "0.0.1",
+    "pigpio": "^1.1.4",
     "pug": "2.0.0-beta11",
     "request": "^2.88.0"
   }
